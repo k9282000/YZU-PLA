@@ -8,7 +8,6 @@ import math
 class Perceptron(object):
     
     def __init__(self):
-        self.learning_step = 0.00001
         self.max_iteration = 5000
     
     def train(self, features, labels):
@@ -16,56 +15,47 @@ class Perceptron(object):
         
         self.featureNameList = features.columns.to_list()+['x0'] # feature name append x0
         
-        # each row to calculate y
-        for index , feature in features.iterrows():
-            # index = row index of features
-            # x = row
-            feature = feature.append( pd.Series([1.0], ['x0']))
-            y = labels.loc[index,'Survived']
-            wx = 0
+        time = 0;
+        total_row_count = features.index.size
 
-            for fName , x in feature.iteritems():
-                w = self.weight[self.featureNameList.index(fName)]
-                if math.isnan(x) : 
-                    x = 0
-                wx = wx + (x * w)
-                
-                # print(fName , ' = ' ,x , 'and weight = ', self.weight[self.featureNameList.index(fName)],' val=' ,wx)
-            
-            # print('wx = ',np.sign(wx),'& y = ',y)
-            if wx<=0:
-                predict_sign = 0
-            else:
-                predict_sign = 1
+        while time < self.max_iteration:
+            time += 1
+            # print('train ',time,' times')
+            correct_count = 0
+            for index , feature in features.iterrows():
+                feature = feature.append( pd.Series([1.0], ['x0']))
+                y = labels.loc[index,'Survived']
+                wx = 0
 
-            if predict_sign != y :
                 for fName , x in feature.iteritems():
-                    self.weight[self.featureNameList.index(fName)] = y * x
+                    w = self.weight[self.featureNameList.index(fName)]
+                    if math.isnan(x) : 
+                        x = 0
+                    wx = wx + (x * w)
+                    
+                if wx<=0:
+                    predict_sign = 0
+                else:
+                    predict_sign = 1
+
+                if predict_sign != y :
+                    # print('Wt = ',self.weight)
+                    for fName , x in feature.iteritems():
+                        self.weight[self.featureNameList.index(fName)] += y * x
+                    # print('Wt+1 = ',self.weight)
+                    break;
+                else:
+                    correct_count += 1
+            
+            if correct_count == total_row_count:
+                print ('all pass')
                 break
-            else:
-                print('ok !')
-            if index == 5 :
-                break
-
-        # while time < self.max_iteration:
-        #     index = random.randint(0, len(labels) - 1)
-        #     print('index', index)
-        #     x = list(features[index])
-        #     x.append(1.0)
-        #     print('x features', x)
-        #     y = 2 * labels[index] - 1
-        #     wx = sum([self.w[j] * x[j] for j in range(len(self.w))])
-
-        #     if wx * y > 0:
-        #         correct_count += 1
-        #         if correct_count > self.max_iteration:
-        #             break
-        #         continue
-
-        #     for i in range(len(self.w)):
-        #         self.w[i] += self.learning_step * (y * x[i])
         
-        #print(self.w)
+        if time == self.max_iteration:
+            print ('no perfect weight')
+        else:
+            print ('perfect weight')
+        print ('final weight = ',self.weight)
 
     def predict(self,features):
         labels = []
@@ -81,18 +71,30 @@ class Perceptron(object):
 
 if __name__ == '__main__': #模組名稱
 
-    print ('Start read data')
-    time_1 = time.time()
+    # print ('Start read data')
+    # time_1 = time.time()
 
     raw_data = pd.read_csv('./data/train.csv', header=0)
+    
+    target_data = raw_data[['Survived']]
 
-    # train_data = raw_data[['Pclass','Name','Sex','Age']]
-    train_data = raw_data[['Pclass','Age','SibSp','Parch']]
-    label_data = raw_data[['Survived']]
+    raw_data.drop('Survived', 1, inplace=True)
+
+    raw_data['sex_code'] = raw_data['Sex'].map({'female':1,'male':0}).astype('int')
+
+    # print(type(raw_data['Sex']))
+    # print(raw_data.head())
+    # print(raw_data.info())
+    
+    train_data = raw_data[['sex_code','Pclass','Age','SibSp','Parch','Fare']]
+    print(target_data.head())
 
     # time_2 = time.time()
-    # print ('read data cost ', time_2 - time_1, ' second', '\n')
+    # print ('read data cost ', time_2 - time_1, ' second')
         
-    print ('Start training')
+    # print ('Start training')
     p = Perceptron()
-    p.train(train_data, label_data)
+    p.train(train_data, target_data)
+
+    # time_3 = time.time()
+    # print ('training cost ', time_3 - time_2, ' second', '\n')
