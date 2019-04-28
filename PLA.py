@@ -1,101 +1,111 @@
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-
-import time
-import random
-import math
-from sklearn.metrics import accuracy_score
-
+import numpy as np  # 線性代數涵式庫
+import pandas as pd # 數據分析涵式庫
+import time # 時間函數
+import math # 數學函數
+import os 
+from sklearn.metrics import accuracy_score #機器學習涵式庫
 
 class Perceptron(object):
     
     def __init__(self):
-        self.max_iteration = 7000
-        self.targetLabel = 'Survived'
-        self.pocketWeight = None
-        self.pocketWeight_errNum = 0
+        self.max_iteration = 1000          # 最大訓練次數
+        self.pocketWeight = None        # pocket weight
+        self.pocketWeight_accuracy = 0  # pocket weight 的 準確率
     
-    def train(self, features, labels):
-        self.weight = [0.0] * (len(features.columns)+1) # weight init
-        
-        self.featureNameList = features.columns.to_list()+['x0'] # feature name append x0
-        
-        time = 0
-        total_row_count = features.index.size
-        self.pocketWeight_errNum = features.index.size
+    ''' 預測標籤
+        參數
+            self
+            sampleData     樣本資料      Series
+        回傳
+            label 預測標籤 int
+        '''
+    def predict_label(self,sampleData):
+        wx = 0
+        # 累計 feature 權重
+        for feature , x in sampleData.iteritems():
+            w = self.weight[self.featureNameList.index(feature)]
+            x = 0 if math.isnan(x) else x 
+            wx += x * w
+        # 預測結果
+        label = 1 if np.sign(wx)==1 else 0
+        return label
 
-        while time < self.max_iteration:
-            time += 1
-            # print('train ',time,' times')
-            correct_count = 0
-            for index , feature in features.iterrows():
-                feature = feature.append( pd.Series([1.0], ['x0']))
-                y = labels.loc[index,self.targetLabel]
-                wx = 0
+    ''' 訓練函數
+        參數
+            self
+            data     樣本      DataFrame
+            labels   樣本標籤  DataFrame
+        '''
+    def train(self, data, labels):
+        # 初始化 weight 為 0
+        self.weight = [0.0] * (len(data.columns)+1) 
+        # 設定 feature 名稱清單        
+        self.featureNameList = ['x0']+data.columns.to_list()
+        # 訓練次數
+        trainTime = 0
+        # 初始化 pocketWeight_errCount，預設為全資料數
+        self.pocketWeight_accuracy = 0
 
-                for fName , x in feature.iteritems():
-                    w = self.weight[self.featureNameList.index(fName)]
-                    if math.isnan(x) : 
-                        x = 0
-                    wx = wx + (x * w)
-                    
-                if wx<=0:
-                    predict_sign = 0
-                else:
-                    predict_sign = 1
+        # 訓練迴圈
+        while trainTime < self.max_iteration:
+            trainTime += 1      # 訓練次數計數
+            correct_count = 0   # 本次訓練的正確筆數
+            print('train ',trainTime,' times')
+            # feature 迴圈，計算
+            for index , row in data.iterrows():
+                # 將 feature 套上 x0，固定為1
+                row = pd.Series([1.0], ['x0']).append(row)
+                
+                y = labels.loc[index,'Survived'] # 取出對應的 label 為 y
+                label = self.predict_label(row)
 
-                if predict_sign != y :
-                    if index < self.pocketWeight_errNum:
-                        self.pocketWeight_errNum = index
+                # Error Point 
+                if label != y :
+                    # 取得本次Error weight 的準確率
+                    data_predict = self.predict(data)
+                    train_labels = [x[0] for x in labels[['Survived']].values.tolist()]
+                    score = accuracy_score(train_labels, data_predict)
+
+                    # 檢測是否替換 pocket weight
+                    if score > self.pocketWeight_accuracy:
+                        self.pocketWeight_accuracy = score
                         self.pocketWeight = self.weight
 
-                    if y<=0:
-                        y = -1
-
-                    for fName , x in feature.iteritems():
-                        self.weight[self.featureNameList.index(fName)] += y * x
-                    break
+                    label_sign = -1 if y==0 else 1
+                    
+                    # 計算新權重
+                    for feature , x in row.iteritems():
+                        self.weight[self.featureNameList.index(feature)] += label_sign * x
+                    break # Error 結束舊權重訓練
                 else:
-                    correct_count += 1
+                    correct_count += 1 # Pass Counter
             
-            if correct_count == total_row_count:
+            if correct_count == data.index.size:
                 print ('all pass')
                 break
-        print(time,self.max_iteration)
+
+        # 訓練結束原因判斷，是否取用 Pocket Weight
         if time == self.max_iteration:
             self.weight = self.pocketWeight
-            print ('no perfect weight')
-        else:
-            print ('perfect weight')
-        print ('final weight = ',self.weight)
+        
+        print ('PLA weight = ',self.weight)
 
-    def predict(self,features):
+    ''' 預測函數
+        參數
+            self
+            data     樣本      DataFrame
+        回傳
+            labels 預測標籤 list
+        '''
+    def predict(self,data):
         labels = []
-        for index , feature in features.iterrows():
-            feature = feature.append( pd.Series([1.0], ['x0']))
-            wx = 0
-            for fName , x in feature.iteritems():
-                w = self.weight[self.featureNameList.index(fName)]
-                if math.isnan(x) : 
-                    x = 0
-                wx = wx + (x * w)
-                
-            if wx<=0:
-                predict_sign = 0
-            else:
-                predict_sign = 1
-            labels.append(predict_sign)
+        for row in data.iterrows():
+            row = row[1]
+            # 將 feature 套上 x0，固定為1
+            row = pd.Series([1.0], ['x0']).append(row)
+            labels.append(self.predict_label(row))
         return labels
-            # break
-        #     x = list(feature)
-        #     x.append(1)
-        #     labels.append(self.predict_(x))
-        # return labels
-
-    def predict_(self, x):
-        wx = sum([self.weight[j] * x[j] for j in range(len(self.weight))])
-        return int(wx > 0)
-
+    
 def preProcess(data):
     
     # Sex trans to sex_code 1/0
@@ -107,10 +117,10 @@ def preProcess(data):
     # replace nan to average in age
     data['Age'] = data['Age'].transform(lambda x: age_mean if math.isnan(x) else x)
 
-    # filter feature
-    return  data[['sex_code','Pclass','Age','SibSp','Parch','Fare']]
+    data['hasFamily'] =( data['SibSp']+data['Parch']>0 ).map({True:1,False:0})
 
-   
+    # filter feature
+    return  data[['sex_code','Pclass','Age','hasFamily','Fare']]
 
 if __name__ == '__main__': #模組名稱
 
@@ -122,7 +132,7 @@ if __name__ == '__main__': #模組名稱
 
     # data preprocee    
     train_data = preProcess(raw_data)
-    
+    # os._exit(0)
     p = Perceptron()
     p.train(train_data, target_data)
     
@@ -138,4 +148,7 @@ if __name__ == '__main__': #模組名稱
     score = accuracy_score(test_labels, test_predict)
 
     print(score)
+    result = {'PassengerId': range(892,1310), 'Survived': test_predict}
+    result = pd.DataFrame(data=result)
+    result.to_csv('dewei_predict_20190428.csv', sep=',')
     
