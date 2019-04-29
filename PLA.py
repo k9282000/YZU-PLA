@@ -1,6 +1,5 @@
 import numpy as np  # 線性代數涵式庫
 import pandas as pd # 數據分析涵式庫
-import time # 時間函數
 import math # 數學函數
 import os 
 from sklearn.metrics import accuracy_score #機器學習涵式庫
@@ -8,7 +7,7 @@ from sklearn.metrics import accuracy_score #機器學習涵式庫
 class Perceptron(object):
     
     def __init__(self):
-        self.max_iteration = 1000          # 最大訓練次數
+        self.max_iteration = 5000          # 最大訓練次數
         self.pocketWeight = None        # pocket weight
         self.pocketWeight_accuracy = 0  # pocket weight 的 準確率
     
@@ -24,7 +23,7 @@ class Perceptron(object):
         # 累計 feature 權重
         for feature , x in sampleData.iteritems():
             w = self.weight[self.featureNameList.index(feature)]
-            x = 0 if math.isnan(x) else x 
+            # x = 0 if math.isnan(x) else x 
             wx += x * w
         # 預測結果
         label = 1 if np.sign(wx)==1 else 0
@@ -50,7 +49,7 @@ class Perceptron(object):
         while trainTime < self.max_iteration:
             trainTime += 1      # 訓練次數計數
             correct_count = 0   # 本次訓練的正確筆數
-            print('train ',trainTime,' times')
+            print('train ',trainTime,' times , weight = ',self.weight)
             # feature 迴圈，計算
             for index , row in data.iterrows():
                 # 將 feature 套上 x0，固定為1
@@ -68,8 +67,9 @@ class Perceptron(object):
 
                     # 檢測是否替換 pocket weight
                     if score > self.pocketWeight_accuracy:
+                        print('change pocket weight')
                         self.pocketWeight_accuracy = score
-                        self.pocketWeight = self.weight
+                        self.pocketWeight = list(self.weight)
 
                     label_sign = -1 if y==0 else 1
                     
@@ -83,12 +83,14 @@ class Perceptron(object):
             if correct_count == data.index.size:
                 print ('all pass')
                 break
-
-        # 訓練結束原因判斷，是否取用 Pocket Weight
-        if time == self.max_iteration:
-            self.weight = self.pocketWeight
-        
         print ('PLA weight = ',self.weight)
+        print ('pocket weight = ',self.pocketWeight)
+        # 訓練結束原因判斷，是否取用 Pocket Weight
+        if trainTime == self.max_iteration:
+            self.weight = self.pocketWeight
+            print('use  pocket weight')
+        
+        
 
     ''' 預測函數
         參數
@@ -111,16 +113,18 @@ def preProcess(data):
     # Sex trans to sex_code 1/0
     data['sex_code'] = data['Sex'].map({'female':1,'male':0}).astype('int')
 
-    # get average of Age
-    age_mean = int(data['Age'].mean())
-
     # replace nan to average in age
-    data['Age'] = data['Age'].transform(lambda x: age_mean if math.isnan(x) else x)
+    data["Age"] = data["Age"].fillna(data["Age"].median())
+    data["Fare"] = data["Fare"].fillna(data["Fare"].median())
+    data["Embarked"] = data["Embarked"].fillna('Q')
 
     data['hasFamily'] =( data['SibSp']+data['Parch']>0 ).map({True:1,False:0})
+    # data["Embarked"] = data["Embarked"].apply(lambda x:1 if x =="C" else 0)
+    data['Embarked'] = data['Embarked'].map({'C':2,'Q':1,'S':0}).astype('int')
+
 
     # filter feature
-    return  data[['sex_code','Pclass','Age','hasFamily','Fare']]
+    return  data[['sex_code','Pclass','Age','hasFamily','Fare','Embarked']]
 
 if __name__ == '__main__': #模組名稱
 
@@ -142,6 +146,7 @@ if __name__ == '__main__': #模組名稱
     # data preprocee    
     test_data = preProcess(test_data)
     test_predict = p.predict(test_data) 
+    print('predict weight = ',p.weight)
 
     test_labels = pd.read_csv('./data/gender_submission.csv', header=0)
     test_labels = [x[0] for x in test_labels[['Survived']].values.tolist()]
@@ -150,5 +155,5 @@ if __name__ == '__main__': #模組名稱
     print(score)
     result = {'PassengerId': range(892,1310), 'Survived': test_predict}
     result = pd.DataFrame(data=result)
-    result.to_csv('dewei_predict_20190428.csv', sep=',')
+    result.to_csv('dewei_predict_20190429_03.csv', sep=',',index=False)
     
