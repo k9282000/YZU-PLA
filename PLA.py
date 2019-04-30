@@ -1,13 +1,12 @@
 import numpy as np  # 線性代數涵式庫
 import pandas as pd # 數據分析涵式庫
-import math # 數學函數
 import os 
 from sklearn.metrics import accuracy_score #機器學習涵式庫
 
 class Perceptron(object):
     
     def __init__(self):
-        self.max_iteration = 5000          # 最大訓練次數
+        self.max_iteration = 2000          # 最大訓練次數
         self.pocketWeight = None        # pocket weight
         self.pocketWeight_accuracy = 0  # pocket weight 的 準確率
     
@@ -23,7 +22,6 @@ class Perceptron(object):
         # 累計 feature 權重
         for feature , x in sampleData.iteritems():
             w = self.weight[self.featureNameList.index(feature)]
-            # x = 0 if math.isnan(x) else x 
             wx += x * w
         # 預測結果
         label = 1 if np.sign(wx)==1 else 0
@@ -89,8 +87,6 @@ class Perceptron(object):
         if trainTime == self.max_iteration:
             self.weight = self.pocketWeight
             print('use  pocket weight')
-        
-        
 
     ''' 預測函數
         參數
@@ -121,7 +117,6 @@ def preProcess(data):
     data['hasFamily'] =( data['SibSp']+data['Parch']>0 ).map({True:1,False:0})
     # data["Embarked"] = data["Embarked"].apply(lambda x:1 if x =="C" else 0)
     data['Embarked'] = data['Embarked'].map({'C':2,'Q':1,'S':0}).astype('int')
-
 
     # filter feature
     return  data[['sex_code','Pclass','Age','hasFamily','Fare','Embarked']]
