@@ -125,7 +125,8 @@ if __name__ == '__main__': #模組名稱
 
     # get trainning data from csv file
     raw_data = pd.read_csv('./data/train.csv', header=0)
-    
+    print(raw_data)
+    exit()
     # extract target value
     target_data = raw_data[['Survived']]
 
